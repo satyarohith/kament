@@ -3,7 +3,7 @@
  *
  * This script exports the routes of Kament API along with their corresponding handlers.
  */
-import { tokenHandler } from "./api/token.js";
+import { tokenHandler } from "./api/token.ts";
 import { commentsHandler } from "./api/comments.js";
 
 const kamentApiRoutes = {

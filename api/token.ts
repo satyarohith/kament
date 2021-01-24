@@ -3,6 +3,14 @@ import { create } from "https://deno.land/x/djwt@v2.1/mod.ts";
 import { createUser, getUserId } from "../db/mod.js";
 import { validateRequest } from "../util.js";
 
+// TODO(@satyarohith): move to db/mod.ts
+interface User {
+  name: string;
+  email: string;
+  username: string;
+  avatar: string;
+}
+
 /**
  * Generate a JWT token for a user based on the GitHub code provided.
  *
@@ -12,26 +20,48 @@ import { validateRequest } from "../util.js";
  * @param {Request} request
  * @param {object} params
  */
-export async function tokenHandler(request, params) {
+export async function tokenHandler(request: Request, params: any) {
   try {
     validateRequest(request, {
-      allowedMethods: ["GET"],
-      params: ["code"],
+      allowedMethods: ["GET", "OPTIONS"],
+      params: ["code"]
     });
 
-    const { searchParams } = new URL(request.url);
-    const code = searchParams.get("code");
-    const { access_token, scope } = await getGHAcessToken(code);
-    if (!scope.includes("email")) {
+    /**
+     * Handle OPTIONS requests.
+     *
+     * This is usually here to respond to pre-flight requests by browsers.
+     */
+    if (request.method === "OPTIONS") {
       return json(
+        {},
         {
-          error: "user:email scope not available",
-        },
-        { status: 400 },
+          headers: {
+            "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
+            "Access-Control-Allow-Methods": "GET, OPTIONS"
+          }
+        }
       );
     }
 
-    const { username, name, email, avatar } = getGHUserInfo(access_token);
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get("code");
+    const { access_token = "", error, scope = "" } = await getGHAcessToken(
+      code!
+    );
+    if (error) {
+      return json({ error }, { status: 400 });
+    }
+    if (!scope.includes("email")) {
+      return json(
+        {
+          error: "user:email scope not available"
+        },
+        { status: 400 }
+      );
+    }
+
+    const { username, name, email, avatar } = await getGHUserInfo(access_token);
     let { data } = await getUserId(username);
     if (!data?.id) {
       const { data: userData, error } = await createUser({
@@ -39,7 +69,7 @@ export async function tokenHandler(request, params) {
         email,
         username,
         avatar,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       });
 
       if (error) {
@@ -61,14 +91,14 @@ export async function tokenHandler(request, params) {
       { alg: "HS512", typ: "JWT" },
       {
         userId: data.id,
-        username: data.username,
+        username: data.username
       },
-      jwtSigningSecret,
+      jwtSigningSecret
     );
 
     return json({ token: jwt });
   } catch (error) {
-    console.error(error);
+    console.log({ error });
     return json({ error: error.message }, { status: 500 });
   }
 }
@@ -76,10 +106,10 @@ export async function tokenHandler(request, params) {
 /**
  * Obtain an access token using the provided temperorary code
  * provided by GitHub after a user authorizes the application.
- *
- * @param {string} code
  */
-async function getGHAcessToken(code) {
+async function getGHAcessToken(
+  code: string
+): Promise<{ access_token?: string; scope?: string; error?: string }> {
   const client_id = Deno.env.get("GITHUB_CLIENT_ID");
   if (!client_id) {
     throw new Error("environment variable GITHUB_CLIENT_ID not set");
@@ -94,40 +124,41 @@ async function getGHAcessToken(code) {
     headers: {
       "content-type": "application/json",
       "user-agent": "kament",
-      accept: "application/json",
+      accept: "application/json"
     },
-    body: JSON.stringify({ client_id, client_secret, code }),
+    body: JSON.stringify({ client_id, client_secret, code })
   });
 
-  return await response.json();
+  const data = await response.json();
+  if (data?.error) {
+    return { error: data.error_description };
+  }
+
+  return data;
 }
 
-/**
- * Obtain GitHub user information like username, avatar_url, name and email.
- *
- * @param {string} accessToken
- */
-async function getGHUserInfo(accessToken) {
+/** Obtain GitHub user information like username, avatar_url, name and email. */
+async function getGHUserInfo(accessToken: string): Promise<User> {
   const response = await fetch("https://api.github.com/user", {
     headers: {
       "Content-Type": "application/json",
       "user-agent": "kament",
       Authorization: "token " + accessToken,
-      accept: "application/json",
-    },
+      accept: "application/json"
+    }
   });
 
   const {
     email,
     name,
     login: username,
-    avatar_url: avatar,
+    avatar_url: avatar
   } = await response.json();
 
   return {
     name,
     email,
     username,
-    avatar,
+    avatar
   };
 }
