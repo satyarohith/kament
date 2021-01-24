@@ -1,0 +1,26 @@
+type User {
+  name: String
+  avatar: String
+  email: String! @unique
+  username: String! @unique(index: "username")
+  comments: [Comment!] @relation
+  createdAt: Time
+}
+
+type Post {
+  slug: String! @unique(index: "posts")
+  comments: [Comment!] @relation
+  createdAt: Time
+}
+
+type Comment {
+  text: String!
+  user: User!
+  post: Post!
+  createdAt: Time
+}
+
+type Query {
+  getPostBySlug(slug: String!): Post!
+  getUserByName(username: String!): User!
+}
