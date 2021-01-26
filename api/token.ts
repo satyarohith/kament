@@ -1,6 +1,6 @@
 import { json } from "https://deno.land/x/sift@0.1.2/mod.ts";
 import { create } from "https://deno.land/x/djwt@v2.1/mod.ts";
-import { createUser, getUserId } from "../db/mod.js";
+import { createUser, getUser } from "../db/mod.js";
 import { validateRequest } from "../util.js";
 
 // TODO(@satyarohith): move to db/mod.ts
@@ -24,7 +24,7 @@ export async function tokenHandler(request: Request, params: any) {
   try {
     validateRequest(request, {
       allowedMethods: ["GET", "OPTIONS"],
-      params: ["code"]
+      params: ["code"],
     });
 
     /**
@@ -38,16 +38,16 @@ export async function tokenHandler(request: Request, params: any) {
         {
           headers: {
             "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
-            "Access-Control-Allow-Methods": "GET, OPTIONS"
-          }
-        }
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+          },
+        },
       );
     }
 
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     const { access_token = "", error, scope = "" } = await getGHAcessToken(
-      code!
+      code!,
     );
     if (error) {
       return json({ error }, { status: 400 });
@@ -55,21 +55,21 @@ export async function tokenHandler(request: Request, params: any) {
     if (!scope.includes("email")) {
       return json(
         {
-          error: "user:email scope not available"
+          error: "user:email scope not available",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const { username, name, email, avatar } = await getGHUserInfo(access_token);
-    let { data } = await getUserId(username);
+    let { data } = await getUser(username);
     if (!data?.id) {
       const { data: userData, error } = await createUser({
         name,
         email,
         username,
         avatar,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       });
 
       if (error) {
@@ -91,12 +91,17 @@ export async function tokenHandler(request: Request, params: any) {
       { alg: "HS512", typ: "JWT" },
       {
         userId: data.id,
-        username: data.username
+        username: data.username,
       },
-      jwtSigningSecret
+      jwtSigningSecret,
     );
 
-    return json({ token: jwt });
+    return json({
+      token: jwt,
+      name: data.name,
+      username: data.username,
+      avatar: data.avatar,
+    });
   } catch (error) {
     console.log({ error });
     return json({ error: error.message }, { status: 500 });
@@ -108,7 +113,7 @@ export async function tokenHandler(request: Request, params: any) {
  * provided by GitHub after a user authorizes the application.
  */
 async function getGHAcessToken(
-  code: string
+  code: string,
 ): Promise<{ access_token?: string; scope?: string; error?: string }> {
   const client_id = Deno.env.get("GITHUB_CLIENT_ID");
   if (!client_id) {
@@ -124,9 +129,9 @@ async function getGHAcessToken(
     headers: {
       "content-type": "application/json",
       "user-agent": "kament",
-      accept: "application/json"
+      accept: "application/json",
     },
-    body: JSON.stringify({ client_id, client_secret, code })
+    body: JSON.stringify({ client_id, client_secret, code }),
   });
 
   const data = await response.json();
@@ -144,21 +149,21 @@ async function getGHUserInfo(accessToken: string): Promise<User> {
       "Content-Type": "application/json",
       "user-agent": "kament",
       Authorization: "token " + accessToken,
-      accept: "application/json"
-    }
+      accept: "application/json",
+    },
   });
 
   const {
     email,
     name,
     login: username,
-    avatar_url: avatar
+    avatar_url: avatar,
   } = await response.json();
 
   return {
     name,
     email,
     username,
-    avatar
+    avatar,
   };
 }
