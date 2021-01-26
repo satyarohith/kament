@@ -89,8 +89,10 @@ async function createUser({ name, username, email, avatar, createdAt }) {
             name: $name
           }
         ) {
-          username
           _id
+          name
+          username
+          avatar
         }
       }
     `,
@@ -105,30 +107,39 @@ async function createUser({ name, username, email, avatar, createdAt }) {
 
   if (data && !error) {
     const {
-      createUser: { _id, username },
+      createUser: { _id, username, name, avatar },
     } = data;
-    return { data: { id: _id, username }, error };
+    return { data: { id: _id, username, name, avatar }, error };
   }
 
   return { data, error };
 }
 
-async function createComment({ postId, userId, comment }) {
+async function createComment({ postId, userId, comment, createdAt }) {
   const { data, error } = await queryFuana(
     gql`
-      mutation($userId: ID!, $postId: ID!, $comment: String!) {
+      mutation(
+        $userId: ID!
+        $postId: ID!
+        $comment: String!
+        $createdAt: Time
+      ) {
         createComment(
           data: {
             # TODO(@satyarohith): change this to message or something more appropriate.
             text: $comment
+            createdAt: $createdAt
             user: { connect: $userId }
             post: { connect: $postId }
           }
         ) {
           _id
           text
+          createdAt
           user {
             username
+            name
+            avatar
           }
           post {
             slug
@@ -140,6 +151,7 @@ async function createComment({ postId, userId, comment }) {
       userId,
       postId,
       comment,
+      createdAt,
     },
   );
 
@@ -153,13 +165,15 @@ async function createComment({ postId, userId, comment }) {
   return { data, error };
 }
 
-async function getUserId(username) {
+async function getUser(username) {
   const { data, error } = await queryFuana(
     gql`
       query($username: String!) {
         getUserByName(username: $username) {
           _id
           username
+          name
+          avatar
         }
       }
     `,
@@ -170,9 +184,9 @@ async function getUserId(username) {
 
   if (data && !error) {
     const {
-      getUserByName: { _id, username },
+      getUserByName: { _id, username, name, avatar },
     } = data;
-    return { data: { id: _id, username }, error };
+    return { data: { id: _id, username, name, avatar }, error };
   }
 
   return { data, error };
@@ -203,6 +217,7 @@ async function getPostId(slug) {
   return { data, error };
 }
 
+// FIXME(@satyarohith)
 async function getCommentsOfPost(slug) {
   const { data, error } = await queryFuana(
     gql`
@@ -214,7 +229,9 @@ async function getCommentsOfPost(slug) {
               text
               createdAt
               user {
+                name
                 username
+                avatar
               }
             }
             before
@@ -249,5 +266,5 @@ export {
   createUser,
   getCommentsOfPost,
   getPostId,
-  getUserId,
+  getUser,
 };
