@@ -175,7 +175,11 @@ function LoginWithGitHub({ updateCreds }) {
   const onSubmit = async (e) => {
     const popup = PopupWindow.open(
       "github-oauth-authorize",
-      `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}`,
+      `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=${
+        encodeURIComponent(
+          "user:email",
+        )
+      }`,
       { height: 600, width: 600 },
     );
 
