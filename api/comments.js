@@ -92,14 +92,12 @@ export async function commentsHandler(request, { postslug }) {
         });
       }
 
-      const {
-        data: { comments },
-        error,
-      } = await getCommentsOfPost(postslug);
+      const { data, error } = await getCommentsOfPost(postslug);
       if (error) {
         return json({ error: error.message });
       }
 
+      const comments = data && data.comments ? data.comments : [];
       commentsCache[postslug] = comments;
       return json({
         comments,
