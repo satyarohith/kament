@@ -8,6 +8,8 @@ import {
   getPostId,
 } from "../db/mod.js";
 
+const commentsCache = {};
+
 /**
  *
  * @param {Request} request
@@ -16,9 +18,25 @@ import {
 export async function commentsHandler(request, { postslug }) {
   try {
     validateRequest(request, {
-      allowedMethods: ["POST", "GET"],
+      allowedMethods: ["POST", "GET", "OPTIONS"],
     });
 
+    /**
+     * Handle OPTIONS requests.
+     *
+     * This is usually here to respond to pre-flight requests by browsers.
+     */
+    if (request.method === "OPTIONS") {
+      return json(
+        {},
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+          },
+        },
+      );
+    }
     /**
      * Handle POST requests.
      *
@@ -27,7 +45,11 @@ export async function commentsHandler(request, { postslug }) {
     if (request.method == "POST" && postslug) {
       const token = request.headers.get("Authorization").split("Bearer ")[1];
       // TODO(@satyarohith): Handle invalid token.
-      const { id: userId } = await verify(token, "secret", "HS512");
+      const jwtSigningSecret = Deno.env.get("JWT_SIGNING_SECRET");
+      if (!jwtSigningSecret) {
+        throw new Error("environment variable JWT_SIGNING_SECRET not set");
+      }
+      const { userId } = await verify(token, jwtSigningSecret, "HS512");
       let postId;
       const { data } = await getPostId(postslug);
 
@@ -40,14 +62,21 @@ export async function commentsHandler(request, { postslug }) {
         postId = data.id;
       }
 
-      const { comment } = await request.json();
-      const body = await createComment({
+      /* Add the comment to the database. */
+      const { comment, createdAt } = await request.json();
+      const { data: commentData, error } = await createComment({
         postId,
         userId,
         comment,
+        createdAt,
       });
 
-      return json(body, { status: 201 });
+      if (error) {
+        return json(error, { status: 500 });
+      }
+
+      delete commentsCache[postslug];
+      return json({ ...commentData }, { status: 201 });
     }
 
     /**
@@ -56,6 +85,13 @@ export async function commentsHandler(request, { postslug }) {
      * The code fetches the comments associated with a post slug and returns them.
      */
     if (request.method == "GET" && postslug) {
+      if (commentsCache[postslug]) {
+        console.log();
+        return json({
+          comments: commentsCache[postslug],
+        });
+      }
+
       const {
         data: { comments },
         error,
@@ -64,6 +100,7 @@ export async function commentsHandler(request, { postslug }) {
         return json({ error: error.message });
       }
 
+      commentsCache[postslug] = comments;
       return json({
         comments,
       });
