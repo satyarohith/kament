@@ -22,10 +22,8 @@ const requestTerms = {
   GET: {},
 };
 
-export async function commentsHandler(
-  request: Request,
-  { postslug }: PathParams,
-) {
+export async function commentsHandler(request: Request, params?: PathParams) {
+  const { postslug } = params!;
   const { body, error } = await validateRequest(request, requestTerms);
   if (error) {
     return json({ error: error.message }, { status: error.status });
@@ -115,22 +113,20 @@ export async function commentsHandler(
    *
    * The code fetches the comments associated with a post slug and returns them.
    */
-  if (request.method == "GET" && postslug) {
-    if (commentsCache[postslug]) {
-      return json({
-        comments: commentsCache[postslug],
-      });
-    }
-
-    const { data, error } = await getCommentsOfPost(postslug);
-    if (error) {
-      return json({ error: error.message });
-    }
-
-    const comments = data && data.comments ? data.comments : [];
-    commentsCache[postslug] = comments;
+  if (commentsCache[postslug]) {
     return json({
-      comments,
+      comments: commentsCache[postslug],
     });
   }
+
+  const { data, error: err } = await getCommentsOfPost(postslug);
+  if (err) {
+    return json({ error: err.message });
+  }
+
+  const comments = data && data.comments ? data.comments : [];
+  commentsCache[postslug] = comments;
+  return json({
+    comments,
+  });
 }

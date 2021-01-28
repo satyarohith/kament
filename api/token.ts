@@ -16,7 +16,7 @@ const requestTerms = {
  * @param {Request} request
  * @param {object} params
  */
-export async function tokenHandler(request: Request, params: any) {
+export async function tokenHandler(request: Request) {
   const { error } = await validateRequest(request, requestTerms);
   if (error) {
     return json({ error: error.message }, { status: error.status });
