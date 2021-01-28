@@ -11,7 +11,7 @@ import {
   getPostId,
 } from "../db/mod.js";
 
-const commentsCache = {};
+const commentsCache: { [key: string]: any } = {};
 
 const requestTerms = {
   POST: {
@@ -55,6 +55,10 @@ export async function commentsHandler(
    */
   if (request.method == "POST" && postslug) {
     const token = request.headers.get("Authorization")?.split("Bearer ")[1];
+    if (!token) {
+      return json({ error: "auth token is empty" });
+    }
+
     const jwtSigningSecret = Deno.env.get("JWT_SIGNING_SECRET");
     if (!jwtSigningSecret) {
       return json(
@@ -85,7 +89,7 @@ export async function commentsHandler(
     }
 
     // Add the comment to the database.
-    const { comment, createdAt } = body;
+    const { comment, createdAt } = body!;
     const { data: commentData, error } = await createComment({
       postId,
       userId,
