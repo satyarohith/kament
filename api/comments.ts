@@ -1,14 +1,14 @@
 import {
   json,
+  PathParams,
   validateRequest,
-  PathParams
 } from "https://deno.land/x/sift@0.1.3/mod.ts";
 import { verify } from "https://deno.land/x/djwt@v2.1/mod.ts";
 import {
   createComment,
   createPost,
   getCommentsOfPost,
-  getPostId
+  getPostId,
 } from "../db/mod.js";
 
 const commentsCache = {};
@@ -16,15 +16,15 @@ const commentsCache = {};
 const requestTerms = {
   POST: {
     headers: ["Authorization"],
-    body: ["comment", "createdAt"]
+    body: ["comment", "createdAt"],
   },
   OPTIONS: {},
-  GET: {}
+  GET: {},
 };
 
 export async function commentsHandler(
   request: Request,
-  { postslug }: PathParams
+  { postslug }: PathParams,
 ) {
   const { body, error } = await validateRequest(request, requestTerms);
   if (error) {
@@ -42,9 +42,9 @@ export async function commentsHandler(
       {
         headers: {
           "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
-          "Access-Control-Allow-Methods": Object.keys(requestTerms).join(", ")
-        }
-      }
+          "Access-Control-Allow-Methods": Object.keys(requestTerms).join(", "),
+        },
+      },
     );
   }
 
@@ -59,9 +59,9 @@ export async function commentsHandler(
     if (!jwtSigningSecret) {
       return json(
         {
-          error: "environment variable JWT_SIGNING_SECRET not set"
+          error: "environment variable JWT_SIGNING_SECRET not set",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -90,7 +90,7 @@ export async function commentsHandler(
       postId,
       userId,
       comment,
-      createdAt
+      createdAt,
     });
 
     if (error) {
@@ -109,7 +109,7 @@ export async function commentsHandler(
   if (request.method == "GET" && postslug) {
     if (commentsCache[postslug]) {
       return json({
-        comments: commentsCache[postslug]
+        comments: commentsCache[postslug],
       });
     }
 
@@ -121,7 +121,7 @@ export async function commentsHandler(
     const comments = data && data.comments ? data.comments : [];
     commentsCache[postslug] = comments;
     return json({
-      comments
+      comments,
     });
   }
 }
