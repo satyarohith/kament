@@ -1,14 +1,6 @@
 import { json, validateRequest } from "https://deno.land/x/sift@0.1.3/mod.ts";
 import { create } from "https://deno.land/x/djwt@v2.1/mod.ts";
-import { createUser, getUser } from "../db/mod.js";
-
-// TODO(@satyarohith): move to db/mod.ts
-interface User {
-  name: string;
-  email: string;
-  username: string;
-  avatar: string;
-}
+import { createUser, getUser, User } from "../db/mod.ts";
 
 const requestTerms = {
   OPTIONS: {},
@@ -85,15 +77,14 @@ export async function tokenHandler(request: Request, params: any) {
       email,
       username,
       avatar,
-      createdAt: new Date().toISOString(),
     });
 
     if (error) {
-      return json({ error: "couldn't create an user" }, { status: 500 });
+      return json({ error: "couldn't create the user" }, { status: 500 });
     }
 
     responseStatus = 201;
-    data = userData;
+    data = userData!;
   }
 
   const jwtSigningSecret = Deno.env.get("JWT_SIGNING_SECRET");

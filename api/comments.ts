@@ -9,14 +9,14 @@ import {
   createPost,
   getCommentsOfPost,
   getPostId,
-} from "../db/mod.js";
+} from "../db/mod.ts";
 
 const commentsCache: { [key: string]: any } = {};
 
 const requestTerms = {
   POST: {
     headers: ["Authorization"],
-    body: ["comment", "createdAt"],
+    body: ["comment"],
   },
   OPTIONS: {},
   GET: {},
@@ -69,10 +69,14 @@ export async function commentsHandler(
       );
     }
 
-    let postId;
-    let userId;
+    let postId: string;
+    let userId: string;
     try {
-      const { userId: id } = await verify(token, jwtSigningSecret, "HS512");
+      const { userId: id } = (await verify(
+        token,
+        jwtSigningSecret,
+        "HS512",
+      )) as { userId: string };
       userId = id;
     } catch (error) {
       return json({ error: "invalid auth token" }, { status: 400 });
@@ -82,19 +86,20 @@ export async function commentsHandler(
     if (!data?.id) {
       // Create a new post in db with the slug.
       const { data, error } = await createPost(postslug);
-      if (error) throw error;
-      postId = data.id;
+      if (error && !data) {
+        return json({ error: "couldn't create the post" }, { status: 500 });
+      }
+      postId = data!.id;
     } else {
       postId = data.id;
     }
 
     // Add the comment to the database.
-    const { comment, createdAt } = body!;
+    const { comment } = body!;
     const { data: commentData, error } = await createComment({
       postId,
       userId,
       comment,
-      createdAt,
     });
 
     if (error) {
