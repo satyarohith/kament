@@ -1,10 +1,27 @@
-/**
- * Query FuanaDB GraphQL endpoint with the provided query and variables.
- *
- * @param {string} query graphql query string
- * @param {unknown} variables
- */
-async function queryFuana(query, variables) {
+export interface User {
+  id?: string;
+  name: string;
+  email?: string;
+  username: string;
+  avatar: string;
+}
+
+export interface Comment {
+  id: string;
+  _id: string;
+  text: string;
+  createdAt: string;
+  user: { name: string; avatar: string; username: string };
+}
+
+/** Query FuanaDB GraphQL endpoint with the provided query and variables. */
+async function queryFuana(
+  query: string,
+  variables: { [key: string]: unknown },
+): Promise<{
+  data?: any;
+  error?: any;
+}> {
   const token = Deno.env.get("FAUNA_SECRET");
   if (!token) {
     throw new Error("environment variable FAUNA_SECRET not set");
@@ -28,18 +45,19 @@ async function queryFuana(query, variables) {
       return { data, error: errors[0] };
     }
 
-    return { data, error: undefined };
+    return { data };
   } catch (error) {
-    return { data: undefined, error };
+    return { error };
   }
 }
 
-/**
- * Create a Post in the database using the provided slug as unique identifier.
- *
- * @param {string} slug
- */
-async function createPost(slug) {
+/** Create a Post in the database using the provided slug as unique identifier. */
+async function createPost(
+  slug: string,
+): Promise<{
+  data?: { id: string; slug: string };
+  error?: { message: string };
+}> {
   const { data, error } = await queryFuana(
     gql`
       mutation($slug: String!) {
@@ -56,8 +74,9 @@ async function createPost(slug) {
 
   if (data && !error) {
     const {
+      // deno-lint-ignore
       createPost: { _id, slug },
-    } = data;
+    } = data as { createPost: { _id: string; slug: string } };
     return { data: { id: _id, slug }, error };
   }
 
@@ -68,9 +87,16 @@ async function createPost(slug) {
  * Create an user in the database using the provided details.
  *
  * The `username` and `email` should be unique. And `createdAt` should be an ISO Date string.
- * @param {{name: string, username: string, email: string, avatar: string, createdAt: string}}
  */
-async function createUser({ name, username, email, avatar, createdAt }) {
+async function createUser({
+  name,
+  username,
+  email,
+  avatar,
+}: User): Promise<{
+  data?: User;
+  error?: { message: string };
+}> {
   const { data, error } = await queryFuana(
     gql`
       mutation(
@@ -90,8 +116,8 @@ async function createUser({ name, username, email, avatar, createdAt }) {
           }
         ) {
           _id
-          name
           username
+          name
           avatar
         }
       }
@@ -100,7 +126,7 @@ async function createUser({ name, username, email, avatar, createdAt }) {
       username,
       email,
       avatar,
-      createdAt,
+      createdAt: new Date().toISOString(),
       name,
     },
   );
@@ -108,29 +134,43 @@ async function createUser({ name, username, email, avatar, createdAt }) {
   if (data && !error) {
     const {
       createUser: { _id, username, name, avatar },
-    } = data;
+    } = data as {
+      createUser: {
+        _id: string;
+        username: string;
+        name: string;
+        avatar: string;
+      };
+    };
     return { data: { id: _id, username, name, avatar }, error };
   }
 
   return { data, error };
 }
 
-async function createComment({ postId, userId, comment, createdAt }) {
+async function createComment({
+  postId,
+  userId,
+  comment,
+}: {
+  postId: string;
+  userId: string;
+  comment: string;
+}): Promise<{ data?: Comment; error?: { message: string } }> {
   const { data, error } = await queryFuana(
     gql`
       mutation(
         $userId: ID!
         $postId: ID!
         $comment: String!
-        $createdAt: Time
+        $createdAt: String!
       ) {
         createComment(
           data: {
-            # TODO(@satyarohith): change this to message or something more appropriate.
             text: $comment
-            createdAt: $createdAt
             user: { connect: $userId }
             post: { connect: $postId }
+            createdAt: $createdAt
           }
         ) {
           _id
@@ -138,11 +178,8 @@ async function createComment({ postId, userId, comment, createdAt }) {
           createdAt
           user {
             username
-            name
             avatar
-          }
-          post {
-            slug
+            name
           }
         }
       }
@@ -151,21 +188,22 @@ async function createComment({ postId, userId, comment, createdAt }) {
       userId,
       postId,
       comment,
-      createdAt,
+      createdAt: new Date().toISOString(),
     },
   );
 
   if (data && !error) {
-    const { createComment } = data;
+    const { createComment } = data as { createComment: Comment };
     createComment.id = createComment._id;
-    delete createComment._id;
     return { data: createComment, error };
   }
 
   return { data, error };
 }
 
-async function getUser(username) {
+async function getUser(
+  username: string,
+): Promise<{ data?: User; error?: { message: string } }> {
   const { data, error } = await queryFuana(
     gql`
       query($username: String!) {
@@ -185,14 +223,26 @@ async function getUser(username) {
   if (data && !error) {
     const {
       getUserByName: { _id, username, name, avatar },
-    } = data;
+    } = data as {
+      getUserByName: {
+        _id: string;
+        username: string;
+        name: string;
+        avatar: string;
+      };
+    };
     return { data: { id: _id, username, name, avatar }, error };
   }
 
   return { data, error };
 }
 
-async function getPostId(slug) {
+async function getPostId(
+  slug: string,
+): Promise<{
+  data?: { id: string; slug: string };
+  error?: { message: string };
+}> {
   const { data, error } = await queryFuana(
     gql`
       query($slug: String!) {
@@ -210,15 +260,16 @@ async function getPostId(slug) {
   if (data && !error) {
     const {
       getPostBySlug: { _id, slug },
-    } = data;
+    } = data as { getPostBySlug: { _id: string; slug: string } };
     return { data: { id: _id, slug }, error };
   }
 
   return { data, error };
 }
 
-// FIXME(@satyarohith)
-async function getCommentsOfPost(slug) {
+async function getCommentsOfPost(
+  slug: string,
+): Promise<{ data?: { comments: Comment[] }; error?: { message: string } }> {
   const { data, error } = await queryFuana(
     gql`
       query($slug: String!) {
@@ -248,7 +299,13 @@ async function getCommentsOfPost(slug) {
       getPostBySlug: {
         comments: { data: comments },
       },
-    } = data;
+    } = data as {
+      getPostBySlug: {
+        comments: {
+          data: Comment[];
+        };
+      };
+    };
     return { data: { comments }, error };
   }
 
@@ -256,7 +313,7 @@ async function getCommentsOfPost(slug) {
 }
 
 /** This is a wrapper function to get formatting and syntax work in vscode. */
-function gql(template) {
+function gql(template: TemplateStringsArray) {
   return template.join("");
 }
 
