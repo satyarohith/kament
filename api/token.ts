@@ -1,7 +1,6 @@
-import { json } from "https://deno.land/x/sift@0.1.2/mod.ts";
+import { json, validateRequest } from "https://deno.land/x/sift@0.1.3/mod.ts";
 import { create } from "https://deno.land/x/djwt@v2.1/mod.ts";
 import { createUser, getUser } from "../db/mod.js";
-import { validateRequest } from "../util.js";
 
 // TODO(@satyarohith): move to db/mod.ts
 interface User {
@@ -10,6 +9,11 @@ interface User {
   username: string;
   avatar: string;
 }
+
+const requestTerms = {
+  OPTIONS: {},
+  GET: { params: ["code"] },
+};
 
 /**
  * Generate a JWT token for a user based on the GitHub code provided.
@@ -21,95 +25,108 @@ interface User {
  * @param {object} params
  */
 export async function tokenHandler(request: Request, params: any) {
-  try {
-    validateRequest(request, {
-      allowedMethods: ["GET", "OPTIONS"],
-      params: ["code"],
+  const { error } = await validateRequest(request, requestTerms);
+  if (error) {
+    return json({ error: error.message }, { status: error.status });
+  }
+
+  /**
+   * Handle OPTIONS requests.
+   *
+   * Usually to respond to pre-flight requests by browsers.
+   */
+  if (request.method === "OPTIONS") {
+    return json(
+      {},
+      {
+        headers: {
+          "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+        },
+      },
+    );
+  }
+
+  /**
+   * Handle GET requests.
+   *
+   * The request should have a code param. With the code, we will
+   * extract an access token from GitHub and then retrieve user information.
+   *
+   * We then create an user in our db and generate an access token that can
+   * be used by the client to make requests to our endpoints.
+   */
+  let responseStatus = 200;
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get("code");
+  const {
+    access_token = "",
+    error: tokenError,
+    scope = "",
+  } = await getGHAcessToken(code!);
+  if (tokenError) {
+    return json({ error: tokenError }, { status: 400 });
+  }
+
+  if (!scope.includes("email")) {
+    return json(
+      {
+        error: "user:email scope not available",
+      },
+      { status: 400 },
+    );
+  }
+
+  const { username, name, email, avatar } = await getGHUserInfo(access_token);
+  let { data } = await getUser(username);
+  if (!data?.id) {
+    const { data: userData, error } = await createUser({
+      name,
+      email,
+      username,
+      avatar,
+      createdAt: new Date().toISOString(),
     });
 
-    /**
-     * Handle OPTIONS requests.
-     *
-     * This is usually here to respond to pre-flight requests by browsers.
-     */
-    if (request.method === "OPTIONS") {
-      return json(
-        {},
-        {
-          headers: {
-            "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-          },
-        },
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const code = searchParams.get("code");
-    const { access_token = "", error, scope = "" } = await getGHAcessToken(
-      code!,
-    );
     if (error) {
-      return json({ error }, { status: 400 });
-    }
-    if (!scope.includes("email")) {
-      return json(
-        {
-          error: "user:email scope not available",
-        },
-        { status: 400 },
-      );
+      return json({ error: "couldn't create an user" }, { status: 500 });
     }
 
-    const { username, name, email, avatar } = await getGHUserInfo(access_token);
-    let { data } = await getUser(username);
-    if (!data?.id) {
-      const { data: userData, error } = await createUser({
-        name,
-        email,
-        username,
-        avatar,
-        createdAt: new Date().toISOString(),
-      });
+    responseStatus = 201;
+    data = userData;
+  }
 
-      if (error) {
-        // FIXME(@satyarohith)
-        return json({ error: error.message }, { status: 500 });
-      }
-
-      data = userData;
-    }
-
-    // Generate a JWT token using the user id and username.
-    // TODO(@satyarohith): handle failures.
-    const jwtSigningSecret = Deno.env.get("JWT_SIGNING_SECRET");
-    if (!jwtSigningSecret) {
-      throw new Error("environment variable JWT_SIGNING_SECRET not set");
-    }
-
-    const jwt = await create(
-      { alg: "HS512", typ: "JWT" },
-      {
-        userId: data.id,
-        username: data.username,
-      },
-      jwtSigningSecret,
+  const jwtSigningSecret = Deno.env.get("JWT_SIGNING_SECRET");
+  if (!jwtSigningSecret) {
+    return json(
+      { error: "environment variable JWT_SIGNING_SECRET not set" },
+      { status: 500 },
     );
+  }
 
-    return json({
+  // Generate a JWT token using the user id and username.
+  const jwt = await create(
+    { alg: "HS512", typ: "JWT" },
+    {
+      userId: data.id,
+      username: data.username,
+    },
+    jwtSigningSecret,
+  );
+
+  return json(
+    {
       token: jwt,
       name: data.name,
       username: data.username,
       avatar: data.avatar,
-    });
-  } catch (error) {
-    console.log({ error });
-    return json({ error: error.message }, { status: 500 });
-  }
+    },
+    { status: responseStatus },
+  );
 }
 
 /**
- * Obtain an access token using the provided temperorary code
+ * Obtain an access token using the temperorary code
  * provided by GitHub after a user authorizes the application.
  */
 async function getGHAcessToken(
