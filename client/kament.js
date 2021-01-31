@@ -1,13 +1,10 @@
-/** Kament Browser Script */
 import {
   createElement,
   Fragment,
-  useEffect,
-  useState,
-} from "https://esm.sh/react@17.0.1";
-import { render } from "https://esm.sh/react-dom@17.0.1";
-import htm from "https://esm.sh/htm@3.0.4";
-import { formatDistanceToNow } from "https://cdn.skypack.dev/pin/date-fns@v2.16.1-IRhVs8UIgU3f9yS5Yt4w/date-fns.js";
+  render,
+} from "./deps/preact@10.5.12/preact.js";
+import { useEffect, useState } from "./deps/preact@10.5.12/hooks.js";
+import htm from "./deps/htm@3.0.4/htm.js";
 const html = htm.bind(createElement);
 
 const kament = document.getElementById("kament");
@@ -44,15 +41,20 @@ function App() {
     if (fetched) {
       return;
     }
-    const response = await fetch(
-      KAMENT_ENDPOINT + "/api/comments/" + encodeURIComponent(postslug),
-    );
-    if (response.ok) {
-      const { comments = [] } = await response.json();
-      setComments(comments);
-      setFetched(true);
-    } else {
-      console.log(response);
+    try {
+      const response = await fetch(
+        KAMENT_ENDPOINT + "/api/comments/" + encodeURIComponent(postslug),
+      );
+      if (response.ok) {
+        const { comments = [] } = await response.json();
+        console.log({ comments });
+        setComments(comments);
+        setFetched(true);
+      } else {
+        console.log(response);
+      }
+    } catch (error) {
+      console.log(error);
     }
   });
 
@@ -60,7 +62,7 @@ function App() {
 
   return html`
     <${Fragment}>
-    <link href="${KAMENT_ENDPOINT}/kament.css" rel="stylesheet" />
+    <link href="${KAMENT_ENDPOINT}/kament/kament.css" rel="stylesheet" />
       <${Comments} comments=${comments} />
       ${!creds && html`<${LoginWithGitHub} updateCreds=${updateCreds} />`}
       ${creds &&
@@ -85,9 +87,7 @@ function Comment({ name, username, text, createdAt }) {
       <div>
         <p>${text}</p>
       </div>
-      <span className="km-comment-time"
-        >${formatDistanceToNow(new Date(createdAt)) + " ago"}</span
-      >
+      <span className="km-comment-time">${new Date(createdAt) + " ago"}</span>
     </div>
   `;
 }
