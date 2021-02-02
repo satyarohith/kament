@@ -138,9 +138,16 @@ export async function commentsHandler(request: Request, params?: PathParams) {
    * The code fetches the comments associated with a post slug and returns them.
    */
   if (commentsCache[postslug]) {
-    return json({
-      comments: commentsCache[postslug],
-    });
+    return json(
+      {
+        comments: commentsCache[postslug],
+      },
+      {
+        headers: {
+          ...accessControlHeaders,
+        },
+      },
+    );
   }
 
   const { data, error: err } = await getCommentsOfPost(postslug);
