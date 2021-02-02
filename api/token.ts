@@ -21,6 +21,7 @@ export async function tokenHandler(request: Request) {
     GET: { params: ["code"] },
   });
   if (error) {
+    console.error(error);
     return json(
       { error: error.message },
       { status: error.status, headers: { ...accessControlHeaders } },
@@ -87,6 +88,7 @@ export async function tokenHandler(request: Request) {
     });
 
     if (error) {
+      console.error(error);
       return json(
         { error: "couldn't create the user" },
         {

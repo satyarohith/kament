@@ -38,6 +38,7 @@ export async function commentsHandler(request: Request, params?: PathParams) {
   const { postslug } = params!;
   const { body, error } = await validateRequest(request, requestSchema);
   if (error) {
+    console.error(error);
     return json(
       { error: error.message },
       { status: error.status, headers: { ...accessControlHeaders } },
@@ -111,9 +112,13 @@ export async function commentsHandler(request: Request, params?: PathParams) {
       // Create a new post in db with the slug.
       const { data, error } = await createPost(postslug);
       if (error && !data) {
+        console.error(error);
         return json(
           { error: "couldn't create the post" },
-          { status: Status.InternalServerError },
+          {
+            status: Status.InternalServerError,
+            headers: { ...accessControlHeaders },
+          },
         );
       }
       postId = data!.id;
@@ -122,16 +127,20 @@ export async function commentsHandler(request: Request, params?: PathParams) {
     }
 
     // Add the comment to the database.
-    const { comment } = body!;
+    const { comment } = body as { comment: string };
     const { data: commentData, error } = await createComment({
       postId,
       userId,
       comment,
     });
     if (error) {
+      console.error(error);
       return json(
         { error: "couldn't create the comment" },
-        { status: Status.InternalServerError },
+        {
+          status: Status.InternalServerError,
+          headers: { ...accessControlHeaders },
+        },
       );
     }
 
