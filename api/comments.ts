@@ -4,6 +4,7 @@ import {
   validateRequest,
 } from "https://deno.land/x/sift@0.1.3/mod.ts";
 import { verify } from "https://deno.land/x/djwt@v2.1/mod.ts";
+import { Status } from "https://deno.land/std@0.85.0/http/http_status.ts";
 import {
   createComment,
   createPost,
@@ -13,7 +14,7 @@ import {
 
 const commentsCache: { [key: string]: any } = {};
 
-const requestTerms = {
+const requestSchema = {
   POST: {
     headers: ["Authorization"],
     body: ["comment"],
@@ -22,9 +23,20 @@ const requestTerms = {
   GET: {},
 };
 
+const accessControlHeaders = {
+  "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Max-Age": "600",
+};
+
+/**
+ * GET comments of a post, create (POST) new comments on a post.
+ *
+ * POST is secured endpoint and requires Authorization header.
+ */
 export async function commentsHandler(request: Request, params?: PathParams) {
   const { postslug } = params!;
-  const { body, error } = await validateRequest(request, requestTerms);
+  const { body, error } = await validateRequest(request, requestSchema);
   if (error) {
     return json({ error: error.message }, { status: error.status });
   }
@@ -32,29 +44,33 @@ export async function commentsHandler(request: Request, params?: PathParams) {
   /**
    * Handle OPTIONS requests.
    *
-   * This is usually here to respond to pre-flight requests by browsers.
+   * Respond to pre-flight requests (by browsers) with appropriate headers.
    */
   if (request.method === "OPTIONS") {
-    return json(
-      {},
-      {
-        headers: {
-          "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
-          "Access-Control-Allow-Methods": Object.keys(requestTerms).join(", "),
-        },
+    return new Response(null, {
+      status: Status.NoContent,
+      headers: {
+        ...accessControlHeaders,
       },
-    );
+    });
   }
 
   /**
    * Handle POST requests.
    *
-   * This involves creation of new comments and posts when required.
+   * The functionality of this method is to create comments. But when a
+   * post with the provided postslug isn't available in the database, a new post
+   * is created in the database along with the comment.
    */
   if (request.method == "POST" && postslug) {
     const token = request.headers.get("Authorization")?.split("Bearer ")[1];
     if (!token) {
-      return json({ error: "auth token is empty" });
+      return json(
+        { error: "auth token is empty" },
+        {
+          status: Status.BadRequest,
+        },
+      );
     }
 
     const jwtSigningSecret = Deno.env.get("JWT_SIGNING_SECRET");
@@ -63,7 +79,7 @@ export async function commentsHandler(request: Request, params?: PathParams) {
         {
           error: "environment variable JWT_SIGNING_SECRET not set",
         },
-        { status: 500 },
+        { status: Status.InternalServerError },
       );
     }
 
@@ -77,7 +93,10 @@ export async function commentsHandler(request: Request, params?: PathParams) {
       )) as { userId: string };
       userId = id;
     } catch (error) {
-      return json({ error: "invalid auth token" }, { status: 400 });
+      return json(
+        { error: "invalid auth token" },
+        { status: Status.BadRequest },
+      );
     }
 
     const { data } = await getPostId(postslug);
@@ -85,7 +104,10 @@ export async function commentsHandler(request: Request, params?: PathParams) {
       // Create a new post in db with the slug.
       const { data, error } = await createPost(postslug);
       if (error && !data) {
-        return json({ error: "couldn't create the post" }, { status: 500 });
+        return json(
+          { error: "couldn't create the post" },
+          { status: Status.InternalServerError },
+        );
       }
       postId = data!.id;
     } else {
@@ -99,13 +121,15 @@ export async function commentsHandler(request: Request, params?: PathParams) {
       userId,
       comment,
     });
-
     if (error) {
-      return json(error, { status: 500 });
+      return json(
+        { error: "couldn't create the comment" },
+        { status: Status.InternalServerError },
+      );
     }
 
     delete commentsCache[postslug];
-    return json({ ...commentData }, { status: 201 });
+    return json({ ...commentData }, { status: Status.Created });
   }
 
   /**
@@ -121,12 +145,22 @@ export async function commentsHandler(request: Request, params?: PathParams) {
 
   const { data, error: err } = await getCommentsOfPost(postslug);
   if (err) {
-    return json({ error: err.message });
+    return json(
+      { error: "couldn't retrieve data from database" },
+      { status: Status.InternalServerError },
+    );
   }
 
   const comments = data && data.comments ? data.comments : [];
   commentsCache[postslug] = comments;
-  return json({
-    comments,
-  });
+  return json(
+    {
+      comments,
+    },
+    {
+      headers: {
+        ...accessControlHeaders,
+      },
+    },
+  );
 }

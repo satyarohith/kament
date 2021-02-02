@@ -1,23 +1,20 @@
 import { json, validateRequest } from "https://deno.land/x/sift@0.1.3/mod.ts";
 import { create } from "https://deno.land/x/djwt@v2.1/mod.ts";
+import { Status } from "https://deno.land/std@0.85.0/http/http_status.ts";
 import { createUser, getUser, User } from "../db/mod.ts";
 
-const requestTerms = {
-  OPTIONS: {},
-  GET: { params: ["code"] },
-};
-
 /**
- * Generate a JWT token for a user based on the GitHub code provided.
+ * Generate a JWT token for a user based on the provided GitHub 'code'.
  *
  * The main functionality involves fetching an access token from GitHub
  * by providing our credentials (GITHUB_CLIENT_ID & GITHUB_CLIENT_SECRET)
- * and the code passed on as parameter.
- * @param {Request} request
- * @param {object} params
+ * and the code provided by the client.
  */
 export async function tokenHandler(request: Request) {
-  const { error } = await validateRequest(request, requestTerms);
+  const { error } = await validateRequest(request, {
+    OPTIONS: {},
+    GET: { params: ["code"] },
+  });
   if (error) {
     return json({ error: error.message }, { status: error.status });
   }
@@ -25,18 +22,17 @@ export async function tokenHandler(request: Request) {
   /**
    * Handle OPTIONS requests.
    *
-   * Usually to respond to pre-flight requests by browsers.
+   * Respond to pre-flight requests (by browsers) with appropriate headers.
    */
   if (request.method === "OPTIONS") {
-    return json(
-      {},
-      {
-        headers: {
-          "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-        },
+    return new Response(null, {
+      status: Status.NoContent,
+      headers: {
+        "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Max-Age": "600",
       },
-    );
+    });
   }
 
   /**
@@ -46,9 +42,9 @@ export async function tokenHandler(request: Request) {
    * extract an access token from GitHub and then retrieve user information.
    *
    * We then create an user in our db and generate an access token that can
-   * be used by the client to make requests to our endpoints.
+   * be used by the client to make further requests to our endpoints.
    */
-  let responseStatus = 200;
+  let responseStatus = Status.OK;
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const {
@@ -57,7 +53,9 @@ export async function tokenHandler(request: Request) {
     scope = "",
   } = await getGHAcessToken(code!);
   if (tokenError) {
-    return json({ error: tokenError }, { status: 400 });
+    // We return a BadRequest status because if we come here that definitely
+    // means that 'code' provided by the client is invalid.
+    return json({ error: tokenError }, { status: Status.BadRequest });
   }
 
   if (!scope.includes("email")) {
@@ -65,7 +63,7 @@ export async function tokenHandler(request: Request) {
       {
         error: "user:email scope not available",
       },
-      { status: 400 },
+      { status: Status.BadRequest },
     );
   }
 
@@ -80,10 +78,13 @@ export async function tokenHandler(request: Request) {
     });
 
     if (error) {
-      return json({ error: "couldn't create the user" }, { status: 500 });
+      return json(
+        { error: "couldn't create the user" },
+        { status: Status.InternalServerError },
+      );
     }
 
-    responseStatus = 201;
+    responseStatus = Status.Created;
     data = userData!;
   }
 
@@ -91,11 +92,11 @@ export async function tokenHandler(request: Request) {
   if (!jwtSigningSecret) {
     return json(
       { error: "environment variable JWT_SIGNING_SECRET not set" },
-      { status: 500 },
+      { status: Status.InternalServerError },
     );
   }
 
-  // Generate a JWT token using the user id and username.
+  // Generate a JWT token embedding the userId and username as payload.
   const jwt = await create(
     { alg: "HS512", typ: "JWT" },
     {
