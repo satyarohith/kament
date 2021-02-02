@@ -163,7 +163,7 @@ async function createComment({
         $userId: ID!
         $postId: ID!
         $comment: String!
-        $createdAt: String!
+        $createdAt: Time
       ) {
         createComment(
           data: {
