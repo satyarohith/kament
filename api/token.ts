@@ -1,4 +1,4 @@
-import { json, validateRequest } from "https://deno.land/x/sift@0.1.3/mod.ts";
+import { json, validateRequest } from "https://deno.land/x/sift@0.1.4/mod.ts";
 import { create, getNumericDate } from "https://deno.land/x/djwt@v2.1/mod.ts";
 import { Status } from "https://deno.land/std@0.85.0/http/http_status.ts";
 import { createUser, getUser, User } from "../db/mod.ts";
@@ -11,12 +11,20 @@ import { createUser, getUser, User } from "../db/mod.ts";
  * and the code provided by the client.
  */
 export async function tokenHandler(request: Request) {
+  const accessControlHeaders = {
+    "Access-Control-Allow-Origin": request.headers.get("Origin") ?? "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Max-Age": "600",
+  };
   const { error } = await validateRequest(request, {
     OPTIONS: {},
     GET: { params: ["code"] },
   });
   if (error) {
-    return json({ error: error.message }, { status: error.status });
+    return json(
+      { error: error.message },
+      { status: error.status, headers: { ...accessControlHeaders } },
+    );
   }
 
   /**
@@ -28,9 +36,7 @@ export async function tokenHandler(request: Request) {
     return new Response(null, {
       status: Status.NoContent,
       headers: {
-        "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Max-Age": "600",
+        ...accessControlHeaders,
       },
     });
   }
@@ -55,7 +61,10 @@ export async function tokenHandler(request: Request) {
   if (tokenError) {
     // We return a BadRequest status because if we come here that definitely
     // means that 'code' provided by the client is invalid.
-    return json({ error: tokenError }, { status: Status.BadRequest });
+    return json(
+      { error: tokenError },
+      { status: Status.BadRequest, headers: { ...accessControlHeaders } },
+    );
   }
 
   if (!scope.includes("email")) {
@@ -63,7 +72,7 @@ export async function tokenHandler(request: Request) {
       {
         error: "user:email scope not available",
       },
-      { status: Status.BadRequest },
+      { status: Status.BadRequest, headers: { ...accessControlHeaders } },
     );
   }
 
@@ -80,7 +89,10 @@ export async function tokenHandler(request: Request) {
     if (error) {
       return json(
         { error: "couldn't create the user" },
-        { status: Status.InternalServerError },
+        {
+          status: Status.InternalServerError,
+          headers: { ...accessControlHeaders },
+        },
       );
     }
 
@@ -92,7 +104,10 @@ export async function tokenHandler(request: Request) {
   if (!jwtSigningSecret) {
     return json(
       { error: "environment variable JWT_SIGNING_SECRET not set" },
-      { status: Status.InternalServerError },
+      {
+        status: Status.InternalServerError,
+        headers: { ...accessControlHeaders },
+      },
     );
   }
 
@@ -114,7 +129,7 @@ export async function tokenHandler(request: Request) {
       username: data.username,
       avatar: data.avatar,
     },
-    { status: responseStatus },
+    { status: responseStatus, headers: { ...accessControlHeaders } },
   );
 }
 

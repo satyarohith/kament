@@ -2,7 +2,7 @@ import {
   json,
   PathParams,
   validateRequest,
-} from "https://deno.land/x/sift@0.1.3/mod.ts";
+} from "https://deno.land/x/sift@0.1.4/mod.ts";
 import { verify } from "https://deno.land/x/djwt@v2.1/mod.ts";
 import { Status } from "https://deno.land/std@0.85.0/http/http_status.ts";
 import {
@@ -23,22 +23,25 @@ const requestSchema = {
   GET: {},
 };
 
-const accessControlHeaders = {
-  "Access-Control-Allow-Origin": "*", // FIXME(@satyarohith)
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Max-Age": "600",
-};
-
 /**
  * GET comments of a post, create (POST) new comments on a post.
  *
  * POST is secured endpoint and requires Authorization header.
  */
 export async function commentsHandler(request: Request, params?: PathParams) {
+  const accessControlHeaders = {
+    "Access-Control-Allow-Origin": request.headers.get("Origin") ?? "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization",
+    "Access-Control-Max-Age": "600",
+  };
   const { postslug } = params!;
   const { body, error } = await validateRequest(request, requestSchema);
   if (error) {
-    return json({ error: error.message }, { status: error.status });
+    return json(
+      { error: error.message },
+      { status: error.status, headers: { ...accessControlHeaders } },
+    );
   }
 
   /**
@@ -69,6 +72,7 @@ export async function commentsHandler(request: Request, params?: PathParams) {
         { error: "auth token is empty" },
         {
           status: Status.BadRequest,
+          headers: { ...accessControlHeaders },
         },
       );
     }
@@ -79,7 +83,10 @@ export async function commentsHandler(request: Request, params?: PathParams) {
         {
           error: "environment variable JWT_SIGNING_SECRET not set",
         },
-        { status: Status.InternalServerError },
+        {
+          status: Status.InternalServerError,
+          headers: { ...accessControlHeaders },
+        },
       );
     }
 
@@ -95,7 +102,7 @@ export async function commentsHandler(request: Request, params?: PathParams) {
     } catch (error) {
       return json(
         { error: "invalid auth token" },
-        { status: Status.BadRequest },
+        { status: Status.BadRequest, headers: { ...accessControlHeaders } },
       );
     }
 
@@ -129,7 +136,10 @@ export async function commentsHandler(request: Request, params?: PathParams) {
     }
 
     delete commentsCache[postslug];
-    return json({ ...commentData }, { status: Status.Created });
+    return json(
+      { ...commentData },
+      { status: Status.Created, headers: { ...accessControlHeaders } },
+    );
   }
 
   /**
@@ -154,7 +164,10 @@ export async function commentsHandler(request: Request, params?: PathParams) {
   if (err) {
     return json(
       { error: "couldn't retrieve data from database" },
-      { status: Status.InternalServerError },
+      {
+        status: Status.InternalServerError,
+        headers: { ...accessControlHeaders },
+      },
     );
   }
 
