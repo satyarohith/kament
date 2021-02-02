@@ -1,5 +1,5 @@
 import { json, validateRequest } from "https://deno.land/x/sift@0.1.3/mod.ts";
-import { create } from "https://deno.land/x/djwt@v2.1/mod.ts";
+import { create, getNumericDate } from "https://deno.land/x/djwt@v2.1/mod.ts";
 import { Status } from "https://deno.land/std@0.85.0/http/http_status.ts";
 import { createUser, getUser, User } from "../db/mod.ts";
 
@@ -100,6 +100,7 @@ export async function tokenHandler(request: Request) {
   const jwt = await create(
     { alg: "HS512", typ: "JWT" },
     {
+      exp: getNumericDate(60 * 60 * 72), // 72 hours
       userId: data.id,
       username: data.username,
     },
