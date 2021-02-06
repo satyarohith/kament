@@ -1,0 +1,17 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "esbuild kament.jsx --bundle '--define:process.env.NODE_ENV=\"production\"' --minify --outfile=dist/kament.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.8.42"
+  },
+  "dependencies": {
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "slate": "^0.59.0",
+    "slate-react": "^0.59.0"
+  }
+}
