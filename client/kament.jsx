@@ -1,33 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react"; 
+import React, { useEffect, useMemo, useState } from "react";
 import { render } from "react-dom";
-import { createEditor } from "slate";
-// TODO(@satyarohith): switch to preact after figuring out how esbuild alias works.
+import { formatDistanceToNow } from "date-fns";
+// TODO(@satyarohith): switch to preact after figuring out how aliases in esbuild work.
 
-// Import the Slate components and React plugin.
-import { Editable, Slate, withReact } from "slate-react";
 const kament = document.getElementById("kament");
 const { postId, githubClientId, kamentEndpoint } = kament.dataset;
-
-const Editor = () => {
-  const editor = useMemo(() => withReact(createEditor()), []);
-  // Add the initial value when setting up our state.
-  const [value, setValue] = useState([
-    {
-      type: "paragraph",
-      children: [{ text: "A line of text in a paragraph." }],
-    },
-  ]);
-
-  return (
-    <Slate
-      editor={editor}
-      value={value}
-      onChange={(newValue) => setValue(newValue)}
-    >
-      <Editable />
-    </Slate>
-  );
-};
 
 function App() {
   function useLocalStorageState(key, defaultValue = "") {
@@ -79,11 +56,9 @@ function App() {
 
   return (
     <>
-      <link href={`${kamentEndpoint}/kament/kament.css`} rel="stylesheet" />
       <Comments comments={comments} />
       {!creds && <LoginWithGitHub updateCreds={updateCreds} />}
       {creds && <CommentInput creds={creds} addComment={addComment} />}
-      <Editor />
     </>
   );
 }
@@ -92,19 +67,21 @@ render(<App />, kament);
 
 function Comment({ name, username, text, createdAt }) {
   return (
-    <div className="km-comment-card">
-      <div className="km-comment-user">
+    <div className="border rounded-md p-2 grid gap-2 max-w-sm mb-2">
+      <div className="flex place-items-center gap-2">
         <img
-          className="km-comment-user-img"
+          className="rounded-md"
           src={`https://github.com/${username}.png`}
           width="28"
         />
-        <h3 className="km-comment-user-name">{name ?? username}</h3>
+        <h3 className="text-xl">{name ?? username}</h3>
       </div>
       <div>
         <p>{text}</p>
       </div>
-      <span className="km-comment-time">{new Date(createdAt) + " ago"}</span>
+      <span className="text-gray-600">
+        {formatDistanceToNow(new Date(createdAt)) + " ago"}
+      </span>
     </div>
   );
 }
@@ -164,24 +141,27 @@ function CommentInput({ addComment, creds }) {
   };
 
   return (
-    <div className="km-comment-input-card">
-      <div className="km-comment-user">
+    <div className="py-2 grid gap-2 max-w-sm mb-2">
+      <div className="flex place-items-center gap-2">
         <img
-          className="km-comment-user-img"
+          className="rounded-md"
           src={`https://github.com/${username}.png`}
           width="28"
         />
-        <h3 className="km-comment-user-name">{name ?? username}</h3>
+        <h3 className="text-xl">{name ?? username}</h3>
       </div>
       <form onSubmit={onSubmit}>
         <textarea
           onChange={onChange}
           value={state.comment}
           id="comment"
-          className="km-comment-input-textarea"
+          className="rounded-md w-full h-24 resize-y border p-1 text-xl"
         >
         </textarea>
-        <button type="submit" className="km-comment-button">
+        <button
+          type="submit"
+          className="bg-green-500 text-white font-semibold max-w-xs w-auto py-1 px-2 rounded float-right"
+        >
           Comment
         </button>
       </form>
