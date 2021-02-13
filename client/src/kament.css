@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add small padding so content doesn't look like it's attached to the elements below. */
+.markdown {
+  @apply p-1;
+}
+
+/* We wan't all h tags to have the same size to avoid dealing with big text sizes in small container. */
+.markdown h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply text-xl;
+}
+
+.markdown blockquote {
+  @apply bg-gray-100 border-l-4 border-gray-300 p-1;
+}

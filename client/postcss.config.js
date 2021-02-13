@@ -1,6 +1,19 @@
 module.exports = {
   plugins: {
-    tailwindcss: {},
+    tailwindcss: {
+      purge: ["./kament.jsx"],
+      darkMode: false, // or 'media' or 'class'
+      theme: {
+        extend: {}
+      },
+      variants: {
+        extend: {}
+      },
+      plugins: []
+    },
     autoprefixer: {},
-  },
+    cssnano: {
+      preset: ["default", { discardComments: { removeAll: true } }]
+    }
+  }
 };
