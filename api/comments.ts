@@ -169,17 +169,9 @@ export async function commentsHandler(request: Request, params?: PathParams) {
     );
   }
 
-  const { data, error: err } = await getCommentsOfPost(postslug);
-  if (err) {
-    return json(
-      { error: "couldn't retrieve data from database" },
-      {
-        status: Status.InternalServerError,
-        headers: { ...accessControlHeaders },
-      },
-    );
-  }
-
+  // We will swallow the error because the post might not be in the database.
+  // In that case we should just return an empty array.
+  const { data, error: _err } = await getCommentsOfPost(postslug);
   const comments = data && data.comments ? data.comments : [];
   commentsCache[postslug] = comments;
   return json(
