@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+.markdown {
+}
+
+.m-h-24 {
+  min-height: 6rem;
+}
 /* Add small padding so content doesn't look like it's attached to the elements below. */
 .markdown {
   @apply p-1;

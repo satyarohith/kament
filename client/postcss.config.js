@@ -1,7 +1,7 @@
 module.exports = {
   plugins: {
     tailwindcss: {
-      purge: ["./kament.jsx"],
+      purge: ["./src/kament.jsx"],
       darkMode: false, // or 'media' or 'class'
       theme: {
         extend: {}

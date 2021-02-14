@@ -24,6 +24,7 @@ esbuild
     entryPoints: ["./src/kament.jsx"],
     bundle: true,
     minify: true,
+    sourcemap: true,
     define: {
       "process.env.NODE_ENV": "'production'"
     },

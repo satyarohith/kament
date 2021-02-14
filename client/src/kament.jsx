@@ -22,8 +22,9 @@ function App() {
   }
 
   const [creds, setCreds] = useLocalStorageState("kamentCreds");
-  const [comments, setComments] = useState();
-  const [fetched, setFetched] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [status, setStatus] = useState("loading");
+  const [error, setErrorStr] = useState(null);
 
   const addComment = (comment) => {
     setComments((prev) => [...prev, comment]);
@@ -33,42 +34,47 @@ function App() {
     setCreds(JSON.stringify(creds));
   };
 
+  const setError = (error) => {
+    setErrorStr(error);
+  };
+
   useEffect(async () => {
-    if (fetched) {
+    if (status !== "loading") {
       return;
     }
-    try {
-      const response = await fetch(
-        kamentEndpoint + "/api/comments/" + encodeURIComponent(postId),
-      );
-      if (response.ok) {
-        const { comments = [] } = await response.json();
-        console.log({ comments });
-        setComments(comments);
-        setFetched(true);
-      } else {
-        console.log(response);
-      }
-    } catch (error) {
-      console.log(error);
+
+    const { comments, error } = await getComments(postId);
+    if (error) {
+      setError(error);
+    } else {
+      setComments((prev) => [...prev, ...comments]);
     }
+    setStatus("done");
   });
 
-  if (!fetched) return <>loading data...</>;
+  if (status === "loading") {
+    return <>loading data...</>;
+  }
 
   return (
-    <>
-      <CommentList comments={comments} />
+    <div className="max-w-sm w-full">
+      <CommentList comments={comments} setError={setError} />
+      {error && <div className="text-red">{error}</div>}
       {creds
-        ? <CommentInput creds={creds} addComment={addComment} />
-        : <LoginWithGitHub updateCreds={updateCreds} />}
-    </>
+        ? <CommentInput
+          {...JSON.parse(creds)}
+          addComment={addComment}
+          setError={setError}
+          postId={postId}
+        />
+        : <LoginWithGitHub updateCreds={updateCreds} setError={setError} />}
+    </div>
   );
 }
 
 function Comment({ user: { username, name }, text, createdAt }) {
   return (
-    <div className="border rounded-md p-2 grid gap-2 max-w-sm mb-2">
+    <div className="border rounded-md p-2 grid gap-2 max-w-sm mb-2 w-full">
       <div className="flex place-items-center gap-2">
         <img
           className="rounded-md"
@@ -77,9 +83,11 @@ function Comment({ user: { username, name }, text, createdAt }) {
         />
         <h3 className="text-xl">{name ?? username}</h3>
       </div>
-      <Markdown>
-        {text}
-      </Markdown>
+      <div className="markdown">
+        <Markdown>
+          {text}
+        </Markdown>
+      </div>
       <span className="text-gray-600">
         {formatDistanceToNow(new Date(createdAt)) + " ago"}
       </span>
@@ -100,7 +108,7 @@ function CommentList({ comments }) {
   return <div>No comments found</div>;
 }
 
-function CommentInput({ addComment, username }) {
+function CommentInput({ username, name, token, postId, addComment, setError }) {
   const [preview, setPreview] = useState(false);
   const [text, setText] = useState("");
 
@@ -111,51 +119,32 @@ function CommentInput({ addComment, username }) {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    addComment({
-      text: text,
-      user: { username, name },
-      createdAt: new Date().toISOString(),
-    });
-    setState({ comment: "" }); // Clear the textarea.
-    const response = await fetch(
-      kamentEndpoint + "/api/comments/" + encodeURIComponent(postId),
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        body: JSON.stringify({
-          comment: text,
-          createdAt: new Date().toISOString(),
-        }),
-      },
-    );
-
-    const results = await response.json();
-    if (results.error) {
-      console.error(results); // FIXME
+    const { error, comment } = await postComment(text, { token, postId });
+    if (error) {
+      setError(error);
+    } else {
+      addComment(comment);
     }
+    setText("");
   };
 
   const handleChange = (e) => {
-    // setState((prevState) => ({ ...prevState, [e.target.id]: e.target.value }));
     setText(e.target.value);
   };
 
-  return <div className="border rounded-md p-2 grid gap-2 max-w-sm mb-2">
+  return <div className="border rounded-md px-1 pb-1 pt-2 grid gap-2">
     <div className="flex place-items-center gap-2">
       <img
         className="rounded-md"
         src={`https://avatars.githubusercontent.com/${username}`}
         width="28"
       />
-      <h3 className="text-xl">{username}</h3>
+      <h3 className="text-xl">{name ?? username}</h3>
     </div>
 
-    <form onSubmit={onSubmit}>
+    <form className="m-0" onSubmit={onSubmit}>
       {preview
-        ? <div className="markdown">
+        ? <div className="markdown w-full h-24 p-1 mb-1">
           <Markdown>
             {text}
           </Markdown>
@@ -164,7 +153,7 @@ function CommentInput({ addComment, username }) {
           onChange={handleChange}
           value={text}
           id="comment"
-          className="rounded-md w-full h-24 resize-y border p-1 text-xl"
+          className="rounded-md w-full h-24 resize-y border p-1 mb-1"
         />}
       <button
         onClick={handleClick}
@@ -182,7 +171,7 @@ function CommentInput({ addComment, username }) {
   </div>;
 }
 
-function LoginWithGitHub({ updateCreds }) {
+function LoginWithGitHub({ updateCreds, setError }) {
   const onSubmit = async (e) => {
     const popup = PopupWindow.open(
       "github-oauth-authorize",
@@ -195,19 +184,11 @@ function LoginWithGitHub({ updateCreds }) {
     );
 
     popup.then(async ({ code }) => {
-      console.log({ code });
-      // Call token with code
-      const response = await fetch(
-        kamentEndpoint + "/api/token?code=" + encodeURIComponent(code),
-      );
-      const creds = await response.json();
-      if (creds) {
-        console.log({ creds, login: true });
-        updateCreds(creds);
+      const { credentials, error } = await getToken(code);
+      if (error) {
+        setError(error);
       } else {
-        console.log("something went wrong while requesting credentials: ", {
-          creds,
-        });
+        updateCreds(credentials);
       }
     });
   };
@@ -217,4 +198,62 @@ function LoginWithGitHub({ updateCreds }) {
       Login with GitHub
     </button>
   );
+}
+
+/**
+ * Wrapper functions to communicate with Kament API.
+ */
+async function postComment(comment, { token, postId }) {
+  const response = await fetch(
+    kamentEndpoint + "/api/comments/" + encodeURIComponent(postId),
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        comment,
+        createdAt: new Date().toISOString(),
+      }),
+    },
+  );
+
+  if (response.ok) {
+    const comment = await response.json();
+    return { comment };
+  }
+
+  return {
+    error: "error posting the comment",
+  };
+}
+
+async function getComments(postId) {
+  const response = await fetch(
+    kamentEndpoint + "/api/comments/" + encodeURIComponent(postId),
+  );
+  if (response.ok) {
+    const { comments = [] } = await response.json();
+    return { comments };
+  }
+
+  return {
+    error: "couldn't retrieve the comments for the post",
+  };
+}
+
+async function getToken(code) {
+  const response = await fetch(
+    kamentEndpoint + "/api/token?code=" + encodeURIComponent(code),
+  );
+
+  if (response.ok) {
+    const credentials = await response.json();
+    return { credentials };
+  }
+
+  return {
+    error: "couldn't retrieve the token",
+  };
 }
