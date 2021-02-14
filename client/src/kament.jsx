@@ -1,8 +1,8 @@
 import React, { render, useEffect, useState } from "preact/compat";
 import { formatDistanceToNow } from "date-fns";
 import Markdown from "markdown-to-jsx";
+import { sanitize } from "dompurify";
 import PopupWindow from "./popup.js";
-
 const kament = document.getElementById("kament");
 const { postId, githubClientId, kamentEndpoint } = kament.dataset;
 
@@ -146,7 +146,7 @@ function CommentInput({ username, name, token, postId, addComment, setError }) {
       {preview
         ? <div className="markdown w-full h-24 p-1 mb-1">
           <Markdown>
-            {text}
+            {sanitize(text)}
           </Markdown>
         </div>
         : <textarea
