@@ -86,7 +86,7 @@ function Comment({ user: { username, name }, text, createdAt }) {
         <h3 className="comment_user_name">{name ?? username}</h3>
       </div>
       <div className="markdown">
-        <Markdown>
+        <Markdown options={{ wrapper: React.Fragment }}>
           {text}
         </Markdown>
       </div>
@@ -147,7 +147,7 @@ function CommentInput({ username, name, token, postId, addComment, setError }) {
     <form className="comment-input_form" onSubmit={onSubmit}>
       {preview
         ? <div className="comment-input_form_markdown_preview">
-          <Markdown>
+          <Markdown options={{ wrapper: React.Fragment }}>
             {sanitize(text)}
           </Markdown>
         </div>

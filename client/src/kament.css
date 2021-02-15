@@ -66,9 +66,14 @@
 }
 
 /* Styles for the Markdown inside comments */
+
 /* Add small padding so content doesn't look like it's attached to the elements below. */
 .markdown {
   @apply p-1;
+}
+
+.markdown > * {
+  @apply mb-1;
 }
 
 /* We wan't all h tags to have the same size to avoid dealing with big text sizes in small container. */
@@ -99,6 +104,10 @@ tr {
 /* Links */
 .markdown a {
   @apply text-blue-600 hover:text-blue-800 hover:underline;
+}
+
+.markdown pre {
+  @apply p-2 bg-gray-100 rounded-md;
 }
 
 /* Miscellaneous. */
