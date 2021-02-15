@@ -69,4 +69,34 @@ TODO
 
 ## Embed Kament on a Website
 
-TODO
+Add these two elements to the `<head></head>` of your page.
+
+```html
+<link
+  rel="stylesheet"
+  src="https://cdn.jsdelivr.net/gh/satyarohith/kament/kament.css"
+/>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/gh/satyarohith/kament/kament.js"
+  type="module"
+/>
+```
+
+And then create a `div` with id named `kament` providing the data attributes
+required by kament.
+
+```html
+<div
+  data-post-id="{slug}"
+  data-kament-endpoint="{endpoint}"
+  data-github-client-id="{github_client_id}"
+  id="kament"
+></div>
+```
+
+The value of the `data-post-id` should be unique for every page and the value
+`data-kament-endpoint` should be the base URL of the Kament API. The value of
+`data-github-client-id` should be the same as the one provided in the
+`GITHUB_CLIENT_ID` secret (don't worry - it is completely safe to expose the
+GitHub client id).
