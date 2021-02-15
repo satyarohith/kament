@@ -1,6 +1,6 @@
 # Kament
 
-Kament is a basic commenting system for static sites. It uses FaunaDB and runs
+Kament is a basic comments widget for static sites. It uses FaunaDB and runs
 on Deploy.
 
 Features offered by Kament:
@@ -74,11 +74,11 @@ Add these two elements to the `<head></head>` of your page.
 ```html
 <link
   rel="stylesheet"
-  src="https://cdn.jsdelivr.net/gh/satyarohith/kament/kament.css"
+  href="https://cdn.jsdelivr.net/gh/satyarohith/kament@cb745b279c9fc64359c00c198b45eb129f2933d9/client/dist/kament.css"
 />
 <script
   defer
-  src="https://cdn.jsdelivr.net/gh/satyarohith/kament/kament.js"
+  src="https://cdn.jsdelivr.net/gh/satyarohith/kament@cb745b279c9fc64359c00c198b45eb129f2933d9/client/dist/kament.js"
   type="module"
 />
 ```
