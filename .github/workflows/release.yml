@@ -1,0 +1,33 @@
+on:
+  push:
+    tags:
+      - "v*"
+
+name: Build & Release assets
+
+jobs:
+  build:
+    name: Upload Release Asset
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Use Node.js 14.x & Build
+        uses: actions/setup-node@v1
+        with:
+          node-version: "14.x"
+      - run: yarn
+      - run: yarn build
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          fail_on_unmatched_files: true
+          files: |
+            ./client/dist/kament.js
+            ./client/dist/kament.css
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
