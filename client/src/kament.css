@@ -2,12 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-.markdown {
+/* Styles of the Comment component of Kament. */
+#kament .comment {
+  @apply border rounded-md p-2 grid gap-2 max-w-sm mb-2 w-full;
 }
 
-.m-h-24 {
-  min-height: 6rem;
+#kament .comment_user {
+  @apply flex place-items-center gap-2;
 }
+
+#kament .comment_user_image {
+  @apply rounded-md;
+}
+
+#kament .comment_user_name {
+  @apply text-xl;
+}
+
+#kament .comment_age {
+  @apply text-gray-600;
+}
+
+/* Styles of the CommentInput component of Kament. */
+#kament .comment-input {
+  @apply border rounded-md px-1 pb-1 pt-2 grid gap-2;
+}
+
+#kament .comment-input_user {
+  @apply flex place-items-center gap-2;
+}
+
+#kament .comment-input_user_image {
+  @apply rounded-md;
+}
+
+#kament .comment-input_user_name {
+  @apply text-xl;
+}
+
+#kament .comment-input_form {
+  @apply m-0;
+}
+
+#kament .comment-input_form_markdown_preview {
+  @apply markdown w-full m-h-24 p-1 mb-1;
+}
+
+#kament .comment-input_form_textarea {
+  @apply rounded-md w-full h-24 resize-y border p-1 mb-1;
+}
+
+#kament .comment-input_form_preview_toggle {
+  @apply rounded border font-sans w-24 py-1 px-2;
+}
+
+#kament .comment-input_form_submit {
+  @apply bg-green-500 text-white font-semibold max-w-xs w-auto py-1 px-2 rounded float-right;
+}
+
+/* Styles of the LoginWithGitHub component of Kament. */
+#kament .github_login_button {
+  @apply bg-green-500 text-white font-semibold max-w-xs w-auto py-1 px-2 rounded;
+}
+
+/* Styles for the Markdown inside comments */
 /* Add small padding so content doesn't look like it's attached to the elements below. */
 .markdown {
   @apply p-1;
@@ -25,4 +83,25 @@ h6 {
 
 .markdown blockquote {
   @apply bg-gray-100 border-l-4 border-gray-300 p-1;
+}
+
+/* Tables */
+.markdown table {
+  @apply table-auto border;
+}
+.markdown thead,
+th,
+td,
+tr {
+  @apply border p-1;
+}
+
+/* Links */
+.markdown a {
+  @apply text-blue-600 hover:text-blue-800 hover:underline;
+}
+
+/* Miscellaneous. */
+.m-h-24 {
+  min-height: 6rem;
 }

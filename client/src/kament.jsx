@@ -3,6 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import Markdown from "markdown-to-jsx";
 import { sanitize } from "dompurify";
 import PopupWindow from "./popup.js";
+
 const kament = document.getElementById("kament");
 const { postId, githubClientId, kamentEndpoint } = kament.dataset;
 
@@ -21,6 +22,7 @@ function App() {
     return [state, setState];
   }
 
+  // TODO(@satyarohith): do not use localstorage for credentials.
   const [creds, setCreds] = useLocalStorageState("kamentCreds");
   const [comments, setComments] = useState([]);
   const [status, setStatus] = useState("loading");
@@ -59,7 +61,7 @@ function App() {
   return (
     <div className="max-w-sm w-full">
       <CommentList comments={comments} setError={setError} />
-      {error && <div className="text-red">{error}</div>}
+      {error && <div className="text-red-400">{error}</div>}
       {creds
         ? <CommentInput
           {...JSON.parse(creds)}
@@ -74,21 +76,21 @@ function App() {
 
 function Comment({ user: { username, name }, text, createdAt }) {
   return (
-    <div className="border rounded-md p-2 grid gap-2 max-w-sm mb-2 w-full">
-      <div className="flex place-items-center gap-2">
+    <div className="comment">
+      <div className="comment_user">
         <img
-          className="rounded-md"
+          className="comment_user_image"
           src={`https://avatars.githubusercontent.com/${username}`}
           width="28"
         />
-        <h3 className="text-xl">{name ?? username}</h3>
+        <h3 className="comment_user_name">{name ?? username}</h3>
       </div>
       <div className="markdown">
         <Markdown>
           {text}
         </Markdown>
       </div>
-      <span className="text-gray-600">
+      <span className="comment_age">
         {formatDistanceToNow(new Date(createdAt)) + " ago"}
       </span>
     </div>
@@ -132,19 +134,19 @@ function CommentInput({ username, name, token, postId, addComment, setError }) {
     setText(e.target.value);
   };
 
-  return <div className="border rounded-md px-1 pb-1 pt-2 grid gap-2">
-    <div className="flex place-items-center gap-2">
+  return <div className="comment-input">
+    <div className="comment-input_user">
       <img
-        className="rounded-md"
+        className="comment-input_user_image"
         src={`https://avatars.githubusercontent.com/${username}`}
         width="28"
       />
-      <h3 className="text-xl">{name ?? username}</h3>
+      <h3 className="comment-input_user_name">{name ?? username}</h3>
     </div>
 
-    <form className="m-0" onSubmit={onSubmit}>
+    <form className="comment-input_form" onSubmit={onSubmit}>
       {preview
-        ? <div className="markdown w-full h-24 p-1 mb-1">
+        ? <div className="comment-input_form_markdown_preview">
           <Markdown>
             {sanitize(text)}
           </Markdown>
@@ -153,17 +155,17 @@ function CommentInput({ username, name, token, postId, addComment, setError }) {
           onChange={handleChange}
           value={text}
           id="comment"
-          className="rounded-md w-full h-24 resize-y border p-1 mb-1"
+          className="comment-input_form_textarea"
         />}
       <button
         onClick={handleClick}
-        className="rounded border font-sans w-24 py-1 px-2"
+        className="comment-input_form_preview_toggle"
       >
         {preview ? "edit" : "preview"}
       </button>
       <button
         type="submit"
-        className="bg-green-500 text-white font-semibold max-w-xs w-auto py-1 px-2 rounded float-right"
+        className="comment-input_form_submit"
       >
         Comment
       </button>
@@ -194,7 +196,7 @@ function LoginWithGitHub({ updateCreds, setError }) {
   };
 
   return (
-    <button className="km-login-button" onClick={onSubmit}>
+    <button className="github_login_button" onClick={onSubmit}>
       Login with GitHub
     </button>
   );
